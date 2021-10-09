@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/mmcloughlin/meow"
+	"github.com/pckhoi/meow"
 )
 
 func ExampleChecksum() {

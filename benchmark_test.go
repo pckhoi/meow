@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/mmcloughlin/meow"
+	"github.com/pckhoi/meow"
 )
 
 // buffer is pre-allocated to avoid allocations in benchmarking functions themselves.
@@ -46,5 +46,16 @@ func BenchmarkHash(b *testing.B) {
 		h := meow.New(0)
 		h.Write(data)
 		return h.Sum(nil)[0]
+	})
+}
+
+func BenchmarkSumTo(b *testing.B) {
+	h := meow.New(0)
+	sum := make([]byte, meow.Size)
+	benchmarkChecksum(b, func(data []byte) byte {
+		h.Reset()
+		h.Write(data)
+		h.SumTo(sum)
+		return sum[0]
 	})
 }

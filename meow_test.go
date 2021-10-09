@@ -1,6 +1,7 @@
 package meow
 
 import (
+	"bytes"
 	"testing"
 )
 
@@ -66,6 +67,20 @@ func TestHashSizes(t *testing.T) {
 	AssertHashSize(t, "New", New(0), Size)
 	AssertHashSize(t, "New64", New64(0), 8)
 	AssertHashSize(t, "New32", New32(0), 4)
+}
+
+func TestSumTo(t *testing.T) {
+	h := New(0)
+	b := []byte("output of SumTo must be similar to Sum")
+	h.Write(b)
+	sum := h.Sum(nil)
+	h.Reset()
+	sum2 := make([]byte, Size)
+	h.Write(b)
+	h.SumTo(sum2)
+	if !bytes.Equal(sum, sum2) {
+		t.Fatalf("got=%x expect=%x", sum2, sum)
+	}
 }
 
 func TestChecksumMatchesHash(t *testing.T) {

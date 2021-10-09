@@ -3,7 +3,6 @@ package meow
 import (
 	"crypto/aes"
 	"encoding/binary"
-	"hash"
 )
 
 //go:generate go run make_block.go
@@ -48,26 +47,26 @@ func Checksum32(seed uint64, data []byte) uint32 {
 }
 
 // New returns a 128-bit Meow hash.
-func New(seed uint64) hash.Hash {
+func New(seed uint64) *Digest {
 	return new(seed, Size)
 }
 
 // New64 returns the 64-bit version of Meow hash.
-func New64(seed uint64) hash.Hash64 {
+func New64(seed uint64) *Digest {
 	return new(seed, 8)
 }
 
 // New32 returns the 32-bit version of Meow hash.
-func New32(seed uint64) hash.Hash32 {
+func New32(seed uint64) *Digest {
 	return new(seed, 4)
 }
 
-func new(seed uint64, size int) *digest {
-	return &digest{seed: seed, size: size}
+func new(seed uint64, size int) *Digest {
+	return &Digest{seed: seed, size: size}
 }
 
-// digest computes Meow hash in a streaming fashion.
-type digest struct {
+// Digest computes Meow hash in a streaming fashion.
+type Digest struct {
 	seed   uint64          // hash seed
 	s      [BlockSize]byte // streams
 	b      [BlockSize]byte // pending block
@@ -77,11 +76,17 @@ type digest struct {
 	size   int             // hash size in bytes
 }
 
-func (d *digest) Size() int { return d.size }
+// Size returns the number of bytes Sum will return.
+func (d *Digest) Size() int { return d.size }
 
-func (d *digest) BlockSize() int { return BlockSize }
+// BlockSize returns the hash's underlying block size.
+// The Write method must be able to accept any amount
+// of data, but it may operate more efficiently if all writes
+// are a multiple of the block size.
+func (d *Digest) BlockSize() int { return BlockSize }
 
-func (d *digest) Reset() {
+// Reset resets the Hash to its initial state.
+func (d *Digest) Reset() {
 	for i := 0; i < BlockSize; i++ {
 		d.s[i] = 0
 	}
@@ -90,7 +95,9 @@ func (d *digest) Reset() {
 	d.t = nil
 }
 
-func (d *digest) Write(p []byte) (int, error) {
+// Write (via the embedded io.Writer interface) adds more data to the running hash.
+// It never returns an error.
+func (d *Digest) Write(p []byte) (int, error) {
 	N := len(p)
 	d.length += uint64(N)
 
@@ -130,17 +137,27 @@ func (d *digest) Write(p []byte) (int, error) {
 	return N, nil
 }
 
-func (d *digest) Sum(b []byte) []byte {
+// Sum appends the current hash to b and returns the resulting slice.
+// It does not change the underlying hash state.
+func (d *Digest) Sum(b []byte) []byte {
 	var dst [Size]byte
 	dt := *d
 	finish(dt.seed, dt.s[:], dst[:], dt.b[:d.n], dt.t, dt.length)
 	return append(b, dst[:dt.size]...)
 }
 
-func (d *digest) Sum32() uint32 {
+// SumTo copies the current hash to dst. It is essentially the zero
+// allocation version of Sum. dst must be a slice of length 16.
+func (d *Digest) SumTo(dst []byte) {
+	finish(d.seed, d.s[:], dst, d.b[:d.n], d.t, d.length)
+}
+
+// Sum32 implements hash.Hash32 interface
+func (d *Digest) Sum32() uint32 {
 	return binary.LittleEndian.Uint32(d.Sum(nil))
 }
 
-func (d *digest) Sum64() uint64 {
+// Sum64 implements hash.Hash64 interface
+func (d *Digest) Sum64() uint64 {
 	return binary.LittleEndian.Uint64(d.Sum(nil))
 }
